@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Media Integration</string>
+    <string name="web_client_id">621901244580-634cce1f0r3289afk6uv7gcboaaupbh0.apps.googleusercontent.com</string>
+    <string name="image_profile">Image Profile</string>
+    <string name="name">name</string>
+    <string name="email">email</string>
+    <string name="id">id</string>
+    <string name="logout">Logout</string>
 </resources>
