@@ -6,4 +6,5 @@
     <string name="email">email</string>
     <string name="id">id</string>
     <string name="logout">Logout</string>
+    <string name="logo">logo</string>
 </resources>
