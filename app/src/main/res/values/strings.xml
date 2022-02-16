@@ -7,4 +7,7 @@
     <string name="id">id</string>
     <string name="logout">Logout</string>
     <string name="logo">logo</string>
+    <string name="facebook_app_id">4847956291949556</string>
+    <string name="fb_login_protocol_scheme">fb4847956291949556</string>
+    <string name="facebook_client_token">56789</string>
 </resources>

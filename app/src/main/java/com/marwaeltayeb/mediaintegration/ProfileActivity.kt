@@ -12,8 +12,10 @@ import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth
 import android.content.Intent
 import com.bumptech.glide.Glide
+import com.facebook.login.LoginManager
 
 import com.google.android.gms.auth.api.signin.GoogleSignInResult
+import com.google.firebase.auth.FirebaseUser
 import com.marwaeltayeb.mediaintegration.databinding.ActivityProfileBinding
 import java.lang.NullPointerException
 
@@ -23,10 +25,27 @@ class ProfileActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedL
     private var googleApiClient: GoogleApiClient? = null
     private lateinit var gso: GoogleSignInOptions
 
+    private lateinit var firebaseAuth: FirebaseAuth
+    private var firebaseUser: FirebaseUser? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        firebaseAuth = FirebaseAuth.getInstance()
+        firebaseUser = firebaseAuth.currentUser
+        if (firebaseUser != null) {
+            binding.txtName.text = firebaseUser!!.displayName
+            binding.txtEmail.text = firebaseUser!!.email
+            binding.txtUserID.text = firebaseUser!!.uid
+
+            try {
+                Glide.with(this).load(firebaseUser!!.photoUrl).into(binding.ImgProfilePhoto)
+            } catch (e: NullPointerException) {
+                Toast.makeText(this, "Image not found", Toast.LENGTH_LONG).show()
+            }
+        }
 
         gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
@@ -37,14 +56,19 @@ class ProfileActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedL
             .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
             .build()
 
-        binding.btnLogout.setOnClickListener{
-            FirebaseAuth.getInstance().signOut()
+        binding.btnLogout.setOnClickListener {
+            firebaseAuth.signOut()
             Auth.GoogleSignInApi.signOut(googleApiClient).setResultCallback { status ->
                 if (status.isSuccess()) {
                     gotoMainActivity()
                 } else {
                     Toast.makeText(this, "Session not close", Toast.LENGTH_LONG).show()
                 }
+            }
+
+            if (firebaseUser != null) {
+                LoginManager.getInstance().logOut()
+                gotoMainActivity()
             }
         }
     }
@@ -72,7 +96,7 @@ class ProfileActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedL
                 Toast.makeText(this, "Image not found", Toast.LENGTH_LONG).show()
             }
         } else {
-            gotoMainActivity()
+            //gotoMainActivity()
         }
     }
 

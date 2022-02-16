@@ -6,16 +6,16 @@ import com.google.android.gms.auth.api.Auth
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
-import com.google.firebase.auth.FirebaseAuth
 import android.content.Intent
 import android.widget.Toast
-
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.AuthCredential
+import com.facebook.*
 
 import com.google.android.gms.auth.api.signin.GoogleSignInResult
 import com.marwaeltayeb.mediaintegration.databinding.ActivityMainBinding
 import timber.log.Timber
+
+import com.facebook.login.LoginResult
+import com.google.firebase.auth.*
 
 class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedListener {
 
@@ -27,13 +27,17 @@ class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedList
     var name: String? = null
     var email: String? = null
     var idToken: String? = null
-    private var firebaseAuth: FirebaseAuth? = null
+    private lateinit var firebaseAuth: FirebaseAuth
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
+
+    private var callbackManager: CallbackManager? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        FacebookSdk.sdkInitialize(getApplicationContext())
 
         firebaseAuth = FirebaseAuth.getInstance()
         // Auth state Listener to listen for whether the user is signed in or not
@@ -64,6 +68,26 @@ class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedList
             val intent = Auth.GoogleSignInApi.getSignInIntent(googleApiClient)
             startActivityForResult(intent, RC_SIGN_IN)
         }
+
+        // Initialize Facebook Login button
+        callbackManager = CallbackManager.Factory.create()
+
+        binding.btnFaceBookSignIn.setReadPermissions("email", "public_profile")
+        binding.btnFaceBookSignIn.registerCallback(callbackManager, object :
+            FacebookCallback<LoginResult> {
+            override fun onSuccess(result: LoginResult) {
+                Timber.tag(TAG).d("facebook:onSuccess: $result")
+                handleFacebookAccessToken(result.accessToken)
+            }
+
+            override fun onCancel() {
+                Timber.tag(TAG).d("facebook:onCancel")
+            }
+
+            override fun onError(error: FacebookException) {
+                Timber.tag(TAG).d("facebook:onError $error")
+            }
+        })
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -71,6 +95,9 @@ class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedList
         if (requestCode == RC_SIGN_IN) {
             val result = Auth.GoogleSignInApi.getSignInResultFromIntent(data)
             handleSignInResult(result!!)
+        } else {
+            // Pass the activity result back to the Facebook SDK
+            callbackManager?.onActivityResult(requestCode, resultCode, data)
         }
     }
 
@@ -92,7 +119,7 @@ class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedList
     }
 
     private fun firebaseAuthWithGoogle(credential: AuthCredential) {
-        firebaseAuth!!.signInWithCredential(credential)
+        firebaseAuth.signInWithCredential(credential)
             .addOnCompleteListener(this) { task ->
                 Timber.tag(TAG).d("signInWithCredential:onComplete: ${task.isSuccessful}")
 
@@ -120,15 +147,56 @@ class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedList
         if (authStateListener != null) {
             FirebaseAuth.getInstance().signOut()
         }
-        firebaseAuth!!.addAuthStateListener(authStateListener!!)
+        firebaseAuth.addAuthStateListener(authStateListener!!)
+
+
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser != null) {
+            Toast.makeText(
+                this,
+                "Currently Logged in: " + currentUser.getEmail(),
+                Toast.LENGTH_LONG
+            ).show()
+            updateUI(currentUser)
+        }
     }
 
     override fun onStop() {
         super.onStop()
         if (authStateListener != null) {
-            firebaseAuth!!.removeAuthStateListener(authStateListener!!)
+            firebaseAuth.removeAuthStateListener(authStateListener!!)
         }
     }
 
     override fun onConnectionFailed(connectionResult: ConnectionResult) {}
+
+    private fun handleFacebookAccessToken(token: AccessToken) {
+        Timber.tag(TAG).d("handleFacebookAccessToken:$token")
+
+        val credential = FacebookAuthProvider.getCredential(token.token)
+        firebaseAuth.signInWithCredential(credential).addOnCompleteListener(this) { task ->
+            if (task.isSuccessful) {
+                // Sign in success, update UI with the signed-in user's information
+                Timber.tag(TAG).d("signInWithCredential:success")
+
+                Toast.makeText(this, "Login successful", Toast.LENGTH_SHORT).show()
+                val user = firebaseAuth.currentUser
+                updateUI(user)
+            } else {
+                // If sign in fails, display a message to the user.
+                Timber.tag(TAG).d("signInWithCredential:failure ${task.exception}")
+
+                Toast.makeText(baseContext, "Authentication failed.", Toast.LENGTH_SHORT).show()
+                updateUI(null)
+            }
+        }
+    }
+
+    private fun updateUI(user: FirebaseUser?) {
+        if (user != null) {
+            gotoProfile()
+        } else {
+            Toast.makeText(this, "Please Sign in to continue", Toast.LENGTH_LONG).show()
+        }
+    }
 }
