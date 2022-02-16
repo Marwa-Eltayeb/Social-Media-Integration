@@ -9,6 +9,8 @@ import com.google.android.gms.common.api.GoogleApiClient
 import android.content.Intent
 import android.widget.Toast
 import com.facebook.*
+import com.facebook.login.LoginBehavior
+import com.facebook.login.LoginManager
 
 import com.google.android.gms.auth.api.signin.GoogleSignInResult
 import com.marwaeltayeb.mediaintegration.databinding.ActivityMainBinding
@@ -72,12 +74,15 @@ class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedList
         // Initialize Facebook Login button
         callbackManager = CallbackManager.Factory.create()
 
-        binding.btnFaceBookSignIn.setReadPermissions("email", "public_profile")
+        binding.btnFaceBookSignIn.setReadPermissions("public_profile", "email")
+        binding.btnFaceBookSignIn.setLoginBehavior(LoginBehavior.WEB_ONLY);
         binding.btnFaceBookSignIn.registerCallback(callbackManager, object :
             FacebookCallback<LoginResult> {
             override fun onSuccess(result: LoginResult) {
                 Timber.tag(TAG).d("facebook:onSuccess: $result")
                 handleFacebookAccessToken(result.accessToken)
+                FirebaseAuth.getInstance().signOut()  // Log out from Firebase
+                if(isFacebookLogin()){ LoginManager.getInstance().logOut()}
             }
 
             override fun onCancel() {
@@ -89,6 +94,8 @@ class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedList
             }
         })
     }
+
+    private fun isFacebookLogin(): Boolean { return AccessToken.getCurrentAccessToken() !=null }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -139,7 +146,6 @@ class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedList
         val intent = Intent(this, ProfileActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
-        finish()
     }
 
     override fun onStart() {
@@ -151,12 +157,7 @@ class MainActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedList
 
 
         val currentUser = firebaseAuth.currentUser
-        if (currentUser != null) {
-            Toast.makeText(
-                this,
-                "Currently Logged in: " + currentUser.getEmail(),
-                Toast.LENGTH_LONG
-            ).show()
+        if (currentUser != null) { Toast.makeText(this, "Currently Logged in: " + currentUser.getEmail(), Toast.LENGTH_LONG).show()
             updateUI(currentUser)
         }
     }

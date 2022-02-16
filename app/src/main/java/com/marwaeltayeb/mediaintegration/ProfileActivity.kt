@@ -95,8 +95,6 @@ class ProfileActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedL
             } catch (e: NullPointerException) {
                 Toast.makeText(this, "Image not found", Toast.LENGTH_LONG).show()
             }
-        } else {
-            //gotoMainActivity()
         }
     }
 
