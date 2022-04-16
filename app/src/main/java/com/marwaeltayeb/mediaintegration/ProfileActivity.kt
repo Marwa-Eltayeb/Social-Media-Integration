@@ -17,12 +17,11 @@ import com.facebook.login.LoginManager
 import com.google.android.gms.auth.api.signin.GoogleSignInResult
 import com.google.firebase.auth.FirebaseUser
 import com.marwaeltayeb.mediaintegration.databinding.ActivityProfileBinding
-import java.lang.NullPointerException
 
 class ProfileActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedListener {
 
     private lateinit var binding: ActivityProfileBinding
-    private var googleApiClient: GoogleApiClient? = null
+    private lateinit var googleApiClient: GoogleApiClient
     private lateinit var gso: GoogleSignInOptions
 
     private lateinit var firebaseAuth: FirebaseAuth
@@ -33,19 +32,7 @@ class ProfileActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedL
         binding = ActivityProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        firebaseAuth = FirebaseAuth.getInstance()
-        firebaseUser = firebaseAuth.currentUser
-        if (firebaseUser != null) {
-            binding.txtName.text = firebaseUser!!.displayName
-            binding.txtEmail.text = firebaseUser!!.email
-            binding.txtUserID.text = firebaseUser!!.uid
-
-            try {
-                Glide.with(this).load(firebaseUser!!.photoUrl).into(binding.ImgProfilePhoto)
-            } catch (e: NullPointerException) {
-                Toast.makeText(this, "Image not found", Toast.LENGTH_LONG).show()
-            }
-        }
+        loadUserInfoFromFacebookUser()
 
         gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
@@ -56,10 +43,14 @@ class ProfileActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedL
             .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
             .build()
 
+       setUpListeners()
+    }
+
+    private fun setUpListeners() {
         binding.btnLogout.setOnClickListener {
             firebaseAuth.signOut()
             Auth.GoogleSignInApi.signOut(googleApiClient).setResultCallback { status ->
-                if (status.isSuccess()) {
+                if (status.isSuccess) {
                     gotoMainActivity()
                 } else {
                     Toast.makeText(this, "Session not close", Toast.LENGTH_LONG).show()
@@ -75,24 +66,46 @@ class ProfileActivity : AppCompatActivity(), GoogleApiClient.OnConnectionFailedL
 
     override fun onStart() {
         super.onStart()
-        val opr = Auth.GoogleSignInApi.silentSignIn(googleApiClient)
-        if (opr.isDone) {
-            val result = opr.get()
+        val optionalPendingResult = Auth.GoogleSignInApi.silentSignIn(googleApiClient)
+        // If the result is available, return true
+        if (optionalPendingResult.isDone) {
+            val result = optionalPendingResult.get()
             handleSignInResult(result)
         } else {
-            opr.setResultCallback { googleSignInResult -> handleSignInResult(googleSignInResult) }
+            optionalPendingResult.setResultCallback { googleSignInResult -> handleSignInResult(googleSignInResult) }
         }
     }
 
     private fun handleSignInResult(result: GoogleSignInResult) {
         if (result.isSuccess) {
             val account = result.signInAccount
-            binding.txtName.text = account!!.displayName
-            binding.txtEmail.text = account.email
-            binding.txtUserID.text = account.id
-            try {
-                Glide.with(this).load(account.photoUrl).into(binding.ImgProfilePhoto)
-            } catch (e: NullPointerException) {
+
+            account?.let {
+                binding.txtName.text = it.displayName
+                binding.txtEmail.text = it.email
+                binding.txtUserID.text = it.id
+
+                if(it.photoUrl!= null){
+                    Glide.with(this).load(account.photoUrl).into(binding.ImgProfilePhoto)
+                }else{
+                    Toast.makeText(this, "Image not found", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun loadUserInfoFromFacebookUser() {
+        firebaseAuth = FirebaseAuth.getInstance()
+        firebaseUser = firebaseAuth.currentUser
+
+        firebaseUser?.let {
+            binding.txtName.text = it.displayName
+            binding.txtEmail.text = it.email
+            binding.txtUserID.text = it.uid
+
+            if(it.photoUrl != null){
+                Glide.with(this).load(it.photoUrl).into(binding.ImgProfilePhoto)
+            }else{
                 Toast.makeText(this, "Image not found", Toast.LENGTH_LONG).show()
             }
         }
